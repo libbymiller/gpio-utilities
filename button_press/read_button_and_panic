@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+require 'wiringpi2'
+require 'pp'
+
+class Button
+
+  INPUT = 0
+  INT_EDGE_RISING = 1
+  INT_EDGE_FALLING = 2
+  INT_EDGE_BOTH = 3
+  PUD_UP = 2
+  attr_accessor :pin, :value
+
+  def initialize(pin, io)
+    @pin = pin
+    puts "pin is #{@pin}"
+    io.pin_mode(@pin,INPUT)
+    io.pullUpDnControl(@pin, PUD_UP)
+    io.wiringpi_isr(@pin, INT_EDGE_BOTH, update(io))
+  end
+
+  def update(io)
+    self.value = io.digital_read(self.pin)
+    return nil
+  end
+
+end
+
+pin = 0
+io = WiringPi::GPIO.new
+button = Button.new(pin,io)
+last_val = nil
+
+ROOT = File.join(File.dirname(__FILE__), '..')
+PATH  = File.join(ROOT, 'tmp')
+
+while (true)
+    button.update(io)
+    if(button.value!=last_val)
+      puts button.value
+      last_val = button.value
+      if(button.value==0)
+           puts "PANIC!"
+           filename = File.join(PATH, "panic")
+           File.open(filename, 'w') { |file| file.write(Time.now) }
+      end
+    end
+end
+
